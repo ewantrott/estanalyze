@@ -1,0 +1,20 @@
+{
+  "name": "estanalyze",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ESTAnalyze - analyzes any stock ticker or market index from financials and news.",
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "fast-xml-parser": "^4.5.0"
+  }
+}
