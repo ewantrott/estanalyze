@@ -126,7 +126,8 @@ function renderQuote(quote) {
     const diff = quote.price - quote.previousClose;
     const pct = (diff / quote.previousClose) * 100;
     const sign = diff >= 0 ? "+" : "";
-    quoteChange.textContent = `${sign}${diff.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+    const arrow = diff >= 0 ? "▲" : "▼";
+    quoteChange.textContent = `${arrow} ${sign}${diff.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
     quoteChange.className = "change " + (diff >= 0 ? "up" : "down");
   } else {
     quoteChange.textContent = "";
@@ -208,9 +209,11 @@ tabButtons.forEach((btn) => {
 
 // ---------- Shared mover-card rendering (indexes, sectors, watchlist) ----------
 
-function moverCardHtml(item, { removable } = {}) {
+function moverCardHtml(item, { removable, index = 0 } = {}) {
+  const delay = `style="animation-delay:${Math.min(index * 30, 300)}ms"`;
+
   if (item.error) {
-    return `<div class="mover-card error">${escapeHtml(item.label || item.symbol)}<br />unavailable</div>`;
+    return `<div class="mover-card error" ${delay}>${escapeHtml(item.label || item.symbol)}<br />unavailable</div>`;
   }
 
   const change = item.change;
@@ -218,17 +221,18 @@ function moverCardHtml(item, { removable } = {}) {
   const hasChange = change != null && pct != null;
   const sign = hasChange && change >= 0 ? "+" : "";
   const dir = hasChange ? (change >= 0 ? "up" : "down") : "";
+  const arrow = hasChange ? (change >= 0 ? "▲" : "▼") : "";
 
   const removeBtn = removable
     ? `<button type="button" class="mover-remove" data-remove="${escapeHtml(item.symbol)}" title="Remove">&times;</button>`
     : "";
 
-  return `<div class="mover-card">
+  return `<div class="mover-card" ${delay}>
     ${removeBtn}
     <div class="mover-symbol">${escapeHtml(item.symbol)}</div>
     <div class="mover-name">${escapeHtml(item.label || item.name || "")}</div>
     <div class="mover-price">${item.price != null ? round2(item.price) : "n/a"}</div>
-    <div class="mover-change ${dir}">${hasChange ? `${sign}${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)` : ""}</div>
+    <div class="mover-change ${dir}">${hasChange ? `${arrow} ${sign}${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)` : ""}</div>
   </div>`;
 }
 
@@ -240,14 +244,14 @@ let marketOverviewLoaded = false;
 
 async function loadMarketOverview() {
   if (marketOverviewLoaded) return;
-  indexGrid.innerHTML = "<div class=\"panel-note\">Loading...</div>";
-  sectorGrid.innerHTML = "<div class=\"panel-note\">Loading...</div>";
+  indexGrid.innerHTML = "<div class=\"panel-note loading\">Loading...</div>";
+  sectorGrid.innerHTML = "<div class=\"panel-note loading\">Loading...</div>";
   try {
     const res = await fetch("/api/market-overview");
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to load market overview");
-    indexGrid.innerHTML = data.indexes.map((item) => moverCardHtml(item)).join("");
-    sectorGrid.innerHTML = data.sectors.map((item) => moverCardHtml(item)).join("");
+    indexGrid.innerHTML = data.indexes.map((item, i) => moverCardHtml(item, { index: i })).join("");
+    sectorGrid.innerHTML = data.sectors.map((item, i) => moverCardHtml(item, { index: i })).join("");
     marketOverviewLoaded = true;
   } catch (err) {
     indexGrid.innerHTML = `<div class="panel-note">Couldn't load: ${escapeHtml(err.message)}</div>`;
@@ -335,13 +339,15 @@ async function loadWatchlist(force = false) {
 
   if (!force && !marketWatchlistDirty && watchlistGrid.dataset.loadedFor === symbols.join(",")) return;
 
-  watchlistGrid.innerHTML = "<div class=\"panel-note\">Loading...</div>";
+  watchlistGrid.innerHTML = "<div class=\"panel-note loading\">Loading...</div>";
   watchlistStatusEl.textContent = "";
   try {
     const res = await fetch(`/api/watchlist-quotes?symbols=${encodeURIComponent(symbols.join(","))}`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to load watchlist");
-    watchlistGrid.innerHTML = data.quotes.map((item) => moverCardHtml(item, { removable: true })).join("");
+    watchlistGrid.innerHTML = data.quotes
+      .map((item, i) => moverCardHtml(item, { removable: true, index: i }))
+      .join("");
     watchlistGrid.dataset.loadedFor = symbols.join(",");
     marketWatchlistDirty = false;
 
