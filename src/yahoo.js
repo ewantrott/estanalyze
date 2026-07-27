@@ -4,16 +4,18 @@ const HEADERS = {
   Accept: "application/json",
 };
 
-const chartUrl = (ticker) =>
-  `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=6mo`;
+const chartUrl = (ticker, range = "6mo") =>
+  `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=${encodeURIComponent(
+    range
+  )}`;
 
 const quoteSummaryUrl = (ticker, crumb) =>
   `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
     ticker
   )}?modules=price,summaryDetail,defaultKeyStatistics,financialData,assetProfile&crumb=${encodeURIComponent(crumb)}`;
 
-async function fetchChart(ticker) {
-  const res = await fetch(chartUrl(ticker), { headers: HEADERS });
+async function fetchChart(ticker, range = "6mo") {
+  const res = await fetch(chartUrl(ticker, range), { headers: HEADERS });
   if (!res.ok) throw new Error(`Yahoo Finance request failed (${res.status})`);
   const data = await res.json();
   const result = data?.chart?.result?.[0];
@@ -133,4 +135,35 @@ function buildQuote(ticker, chart, summary) {
   };
 }
 
-module.exports = { fetchChart, fetchQuoteSummary, buildQuote };
+// Lightweight quote (price + change only) for lists of many symbols
+// (market overview, watchlist) where fetching full fundamentals for every
+// symbol would be slow and unnecessary. Still uses quoteSummary's
+// authoritative previousClose when available (cheap after the first call,
+// since the session/crumb is cached) so the change % matches the main
+// Analyze tab instead of falling back to the less precise derived value.
+function buildLiteQuote(ticker, chart, summary) {
+  const meta = chart.meta || {};
+  const price = summary?.price || {};
+  const previousClose =
+    pick(price.regularMarketPreviousClose) ?? derivePreviousClose(chart) ?? meta.chartPreviousClose ?? null;
+  const currentPrice = meta.regularMarketPrice ?? pick(price.regularMarketPrice) ?? null;
+  const change = currentPrice != null && previousClose != null ? currentPrice - previousClose : null;
+  const changePercent = change != null && previousClose ? (change / previousClose) * 100 : null;
+
+  return {
+    symbol: ticker,
+    name: price.longName || price.shortName || meta.longName || meta.shortName || meta.symbol || ticker,
+    price: currentPrice,
+    previousClose,
+    change,
+    changePercent,
+    currency: meta.currency || null,
+  };
+}
+
+async function fetchLiteQuote(ticker) {
+  const [chart, summary] = await Promise.all([fetchChart(ticker, "5d"), fetchQuoteSummary(ticker)]);
+  return buildLiteQuote(ticker, chart, summary);
+}
+
+module.exports = { fetchChart, fetchQuoteSummary, buildQuote, fetchLiteQuote };

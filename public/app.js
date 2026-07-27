@@ -10,6 +10,9 @@ const statsGrid = document.getElementById("stats-grid");
 const businessSummary = document.getElementById("business-summary");
 const newsList = document.getElementById("news-list");
 const analysisContent = document.getElementById("analysis-content");
+const watchlistToggle = document.getElementById("watchlist-toggle");
+
+let currentQuote = null;
 
 document.querySelectorAll(".chip").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -53,6 +56,12 @@ function fmtPercent(value) {
   return (num * 100).toFixed(2) + "%";
 }
 
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 async function runSearch(rawTicker) {
   const ticker = rawTicker.toUpperCase();
   results.classList.add("hidden");
@@ -60,6 +69,7 @@ async function runSearch(rawTicker) {
   analysisContent.textContent = "";
   newsList.innerHTML = "";
   statsGrid.innerHTML = "";
+  currentQuote = null;
 
   let quote;
   try {
@@ -71,6 +81,7 @@ async function runSearch(rawTicker) {
     return;
   }
 
+  currentQuote = quote;
   renderQuote(quote);
   results.classList.remove("hidden");
   setStatus("");
@@ -154,6 +165,8 @@ function renderQuote(quote) {
   if (!quote.extendedStatsAvailable) {
     setStatus("Note: extended fundamentals were unavailable for this symbol; showing price data only.");
   }
+
+  updateWatchlistToggle();
 }
 
 function renderNews(news) {
@@ -172,8 +185,176 @@ function renderNews(news) {
     .join("");
 }
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
+// ---------- Tabs ----------
+
+const tabButtons = document.querySelectorAll(".tab");
+const tabPanels = {
+  analyze: document.getElementById("tab-analyze"),
+  market: document.getElementById("tab-market"),
+  watchlist: document.getElementById("tab-watchlist"),
+};
+
+tabButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    tabButtons.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    Object.entries(tabPanels).forEach(([name, panel]) => {
+      panel.classList.toggle("hidden", name !== btn.dataset.tab);
+    });
+    if (btn.dataset.tab === "market") loadMarketOverview();
+    if (btn.dataset.tab === "watchlist") loadWatchlist();
+  });
+});
+
+// ---------- Shared mover-card rendering (indexes, sectors, watchlist) ----------
+
+function moverCardHtml(item, { removable } = {}) {
+  if (item.error) {
+    return `<div class="mover-card error">${escapeHtml(item.label || item.symbol)}<br />unavailable</div>`;
+  }
+
+  const change = item.change;
+  const pct = item.changePercent;
+  const hasChange = change != null && pct != null;
+  const sign = hasChange && change >= 0 ? "+" : "";
+  const dir = hasChange ? (change >= 0 ? "up" : "down") : "";
+
+  const removeBtn = removable
+    ? `<button type="button" class="mover-remove" data-remove="${escapeHtml(item.symbol)}" title="Remove">&times;</button>`
+    : "";
+
+  return `<div class="mover-card">
+    ${removeBtn}
+    <div class="mover-symbol">${escapeHtml(item.symbol)}</div>
+    <div class="mover-name">${escapeHtml(item.label || item.name || "")}</div>
+    <div class="mover-price">${item.price != null ? round2(item.price) : "n/a"}</div>
+    <div class="mover-change ${dir}">${hasChange ? `${sign}${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)` : ""}</div>
+  </div>`;
+}
+
+// ---------- Market Overview ----------
+
+const indexGrid = document.getElementById("index-grid");
+const sectorGrid = document.getElementById("sector-grid");
+let marketOverviewLoaded = false;
+
+async function loadMarketOverview() {
+  if (marketOverviewLoaded) return;
+  indexGrid.innerHTML = "<div class=\"panel-note\">Loading...</div>";
+  sectorGrid.innerHTML = "<div class=\"panel-note\">Loading...</div>";
+  try {
+    const res = await fetch("/api/market-overview");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load market overview");
+    indexGrid.innerHTML = data.indexes.map((item) => moverCardHtml(item)).join("");
+    sectorGrid.innerHTML = data.sectors.map((item) => moverCardHtml(item)).join("");
+    marketOverviewLoaded = true;
+  } catch (err) {
+    indexGrid.innerHTML = `<div class="panel-note">Couldn't load: ${escapeHtml(err.message)}</div>`;
+    sectorGrid.innerHTML = "";
+  }
+}
+
+// ---------- Watchlist ----------
+
+const WATCHLIST_KEY = "estanalyze_watchlist";
+const watchlistForm = document.getElementById("watchlist-form");
+const watchlistInput = document.getElementById("watchlist-input");
+const watchlistStatusEl = document.getElementById("watchlist-status");
+const watchlistGrid = document.getElementById("watchlist-grid");
+const watchlistEmpty = document.getElementById("watchlist-empty");
+
+function getWatchlist() {
+  try {
+    const raw = localStorage.getItem(WATCHLIST_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWatchlist(symbols) {
+  localStorage.setItem(WATCHLIST_KEY, JSON.stringify(symbols));
+}
+
+function isWatchlisted(symbol) {
+  return getWatchlist().includes(symbol);
+}
+
+function addToWatchlist(symbol) {
+  const list = getWatchlist();
+  if (!list.includes(symbol)) {
+    list.push(symbol);
+    saveWatchlist(list);
+  }
+}
+
+function removeFromWatchlist(symbol) {
+  saveWatchlist(getWatchlist().filter((s) => s !== symbol));
+}
+
+function updateWatchlistToggle() {
+  if (!currentQuote) return;
+  const watchlisted = isWatchlisted(currentQuote.symbol);
+  watchlistToggle.textContent = watchlisted ? "✓ Watchlisted" : "+ Watchlist";
+  watchlistToggle.classList.toggle("active", watchlisted);
+}
+
+watchlistToggle.addEventListener("click", () => {
+  if (!currentQuote) return;
+  if (isWatchlisted(currentQuote.symbol)) {
+    removeFromWatchlist(currentQuote.symbol);
+  } else {
+    addToWatchlist(currentQuote.symbol);
+  }
+  updateWatchlistToggle();
+  marketWatchlistDirty = true;
+});
+
+watchlistForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const symbol = watchlistInput.value.trim().toUpperCase();
+  if (!symbol) return;
+  addToWatchlist(symbol);
+  watchlistInput.value = "";
+  if (currentQuote && currentQuote.symbol === symbol) updateWatchlistToggle();
+  loadWatchlist(true);
+});
+
+let marketWatchlistDirty = false;
+
+async function loadWatchlist(force = false) {
+  const symbols = getWatchlist();
+
+  if (!symbols.length) {
+    watchlistEmpty.classList.remove("hidden");
+    watchlistGrid.innerHTML = "";
+    return;
+  }
+  watchlistEmpty.classList.add("hidden");
+
+  if (!force && !marketWatchlistDirty && watchlistGrid.dataset.loadedFor === symbols.join(",")) return;
+
+  watchlistGrid.innerHTML = "<div class=\"panel-note\">Loading...</div>";
+  watchlistStatusEl.textContent = "";
+  try {
+    const res = await fetch(`/api/watchlist-quotes?symbols=${encodeURIComponent(symbols.join(","))}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load watchlist");
+    watchlistGrid.innerHTML = data.quotes.map((item) => moverCardHtml(item, { removable: true })).join("");
+    watchlistGrid.dataset.loadedFor = symbols.join(",");
+    marketWatchlistDirty = false;
+
+    watchlistGrid.querySelectorAll("[data-remove]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        removeFromWatchlist(btn.dataset.remove);
+        if (currentQuote && currentQuote.symbol === btn.dataset.remove) updateWatchlistToggle();
+        loadWatchlist(true);
+      });
+    });
+  } catch (err) {
+    watchlistStatusEl.textContent = `Couldn't load watchlist: ${err.message}`;
+    watchlistStatusEl.classList.add("error");
+    watchlistGrid.innerHTML = "";
+  }
 }

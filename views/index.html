@@ -37,43 +37,81 @@
   </header>
 
   <main>
-    <form id="search-form">
-      <input id="ticker-input" type="text" placeholder="e.g. AAPL, TSLA, ^GSPC" autocomplete="off" />
-      <button type="submit">Analyze</button>
-    </form>
+    <nav class="tabs" id="tabs">
+      <button type="button" class="tab active" data-tab="analyze">Analyze</button>
+      <button type="button" class="tab" data-tab="market">Market Overview</button>
+      <button type="button" class="tab" data-tab="watchlist">Watchlist</button>
+    </nav>
 
-    <div class="quick-picks">
-      <span>Try:</span>
-      <button type="button" class="chip" data-ticker="AAPL">AAPL</button>
-      <button type="button" class="chip" data-ticker="MSFT">MSFT</button>
-      <button type="button" class="chip" data-ticker="NVDA">NVDA</button>
-      <button type="button" class="chip" data-ticker="^GSPC">S&amp;P 500</button>
-      <button type="button" class="chip" data-ticker="^IXIC">Nasdaq</button>
-      <button type="button" class="chip" data-ticker="^DJI">Dow</button>
-    </div>
+    <section id="tab-analyze" class="tab-panel">
+      <form id="search-form">
+        <input id="ticker-input" type="text" placeholder="e.g. AAPL, TSLA, ^GSPC" autocomplete="off" />
+        <button type="submit">Analyze</button>
+      </form>
 
-    <div id="status" class="status"></div>
+      <div class="quick-picks">
+        <span>Try:</span>
+        <button type="button" class="chip" data-ticker="AAPL">AAPL</button>
+        <button type="button" class="chip" data-ticker="MSFT">MSFT</button>
+        <button type="button" class="chip" data-ticker="NVDA">NVDA</button>
+        <button type="button" class="chip" data-ticker="^GSPC">S&amp;P 500</button>
+        <button type="button" class="chip" data-ticker="^IXIC">Nasdaq</button>
+        <button type="button" class="chip" data-ticker="^DJI">Dow</button>
+      </div>
 
-    <section id="results" class="results hidden">
-      <div class="card" id="quote-card">
-        <h2 id="quote-title">—</h2>
-        <div class="price-row">
-          <span id="quote-price" class="price">—</span>
-          <span id="quote-change" class="change">—</span>
+      <div id="status" class="status"></div>
+
+      <section id="results" class="results hidden">
+        <div class="card" id="quote-card">
+          <div class="quote-title-row">
+            <h2 id="quote-title">—</h2>
+            <button type="button" id="watchlist-toggle" class="watchlist-toggle">+ Watchlist</button>
+          </div>
+          <div class="price-row">
+            <span id="quote-price" class="price">—</span>
+            <span id="quote-change" class="change">—</span>
+          </div>
+          <div class="stats-grid" id="stats-grid"></div>
+          <p id="business-summary" class="business-summary"></p>
         </div>
-        <div class="stats-grid" id="stats-grid"></div>
-        <p id="business-summary" class="business-summary"></p>
-      </div>
 
-      <div class="card" id="news-card">
-        <h2>Recent News</h2>
-        <ul id="news-list" class="news-list"></ul>
-      </div>
+        <div class="card" id="news-card">
+          <h2>Recent News</h2>
+          <ul id="news-list" class="news-list"></ul>
+        </div>
 
-      <div class="card" id="analysis-card">
-        <h2>AI Analysis</h2>
-        <div id="analysis-content" class="analysis-content"></div>
+        <div class="card" id="analysis-card">
+          <h2>AI Analysis</h2>
+          <div id="analysis-content" class="analysis-content"></div>
+        </div>
+      </section>
+    </section>
+
+    <section id="tab-market" class="tab-panel hidden">
+      <div class="card">
+        <h2>Major Indexes</h2>
+        <div id="index-grid" class="mover-grid"></div>
       </div>
+      <div class="card">
+        <h2>Sector Performance</h2>
+        <p class="panel-note">S&amp;P 500 sector ETFs, used as a proxy for sector performance.</p>
+        <div id="sector-grid" class="mover-grid"></div>
+      </div>
+    </section>
+
+    <section id="tab-watchlist" class="tab-panel hidden">
+      <form id="watchlist-form">
+        <input id="watchlist-input" type="text" placeholder="Add a ticker, e.g. AAPL" autocomplete="off" />
+        <button type="submit">Add</button>
+      </form>
+      <div id="watchlist-status" class="status"></div>
+      <div class="card">
+        <div id="watchlist-empty" class="panel-note hidden">
+          Your watchlist is empty. Add a ticker above, or use the "+ Watchlist" button after analyzing one.
+        </div>
+        <div id="watchlist-grid" class="mover-grid"></div>
+      </div>
+      <p class="panel-note">Saved in this browser only (not synced across devices).</p>
     </section>
 
     <p class="disclaimer">
@@ -82,7 +120,14 @@
       hold any security.
     </p>
 
-    <footer class="site-footer">ESTAnalyze</footer>
+    <footer class="site-footer">
+      <div class="footer-brand">ESTAnalyze</div>
+      <div class="footer-social">
+        <a href="https://x.com/estrades12" target="_blank" rel="noopener noreferrer">X: @estrades12</a>
+        <span class="footer-sep">·</span>
+        <span>Discord: The Traders Hub</span>
+      </div>
+    </footer>
   </main>
 
   <script src="app.js"></script>

@@ -3,9 +3,10 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 
-const { fetchChart, fetchQuoteSummary, buildQuote } = require("./src/yahoo");
+const { fetchChart, fetchQuoteSummary, buildQuote, fetchLiteQuote } = require("./src/yahoo");
 const { fetchNews } = require("./src/news");
 const { analyze, isConfigured } = require("./src/analyze");
+const { fetchMarketOverview } = require("./src/market");
 
 const app = express();
 const PORT = process.env.PORT || 4173;
@@ -48,6 +49,34 @@ app.get("/api/news/:ticker", async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: err.message || "Failed to fetch news" });
   }
+});
+
+app.get("/api/market-overview", async (req, res) => {
+  try {
+    const overview = await fetchMarketOverview();
+    res.json(overview);
+  } catch (err) {
+    res.status(502).json({ error: err.message || "Failed to fetch market overview" });
+  }
+});
+
+app.get("/api/watchlist-quotes", async (req, res) => {
+  const symbols = (req.query.symbols || "")
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean)
+    .slice(0, 30); // sanity cap
+
+  if (!symbols.length) {
+    res.json({ quotes: [] });
+    return;
+  }
+
+  const results = await Promise.allSettled(symbols.map((s) => fetchLiteQuote(s)));
+  const quotes = results.map((result, i) =>
+    result.status === "fulfilled" ? result.value : { symbol: symbols[i], error: true }
+  );
+  res.json({ quotes });
 });
 
 app.post("/api/analyze", async (req, res) => {
