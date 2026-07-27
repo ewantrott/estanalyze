@@ -4,18 +4,18 @@ const HEADERS = {
   Accept: "application/json",
 };
 
-const chartUrl = (ticker, range = "6mo") =>
-  `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=${encodeURIComponent(
-    range
-  )}`;
+const chartUrl = (ticker, range = "6mo", interval = "1d") =>
+  `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=${encodeURIComponent(
+    interval
+  )}&range=${encodeURIComponent(range)}`;
 
 const quoteSummaryUrl = (ticker, crumb) =>
   `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
     ticker
   )}?modules=price,summaryDetail,defaultKeyStatistics,financialData,assetProfile&crumb=${encodeURIComponent(crumb)}`;
 
-async function fetchChart(ticker, range = "6mo") {
-  const res = await fetch(chartUrl(ticker, range), { headers: HEADERS });
+async function fetchChart(ticker, range = "6mo", interval = "1d") {
+  const res = await fetch(chartUrl(ticker, range, interval), { headers: HEADERS });
   if (!res.ok) throw new Error(`Yahoo Finance request failed (${res.status})`);
   const data = await res.json();
   const result = data?.chart?.result?.[0];

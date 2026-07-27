@@ -6,7 +6,9 @@ const fs = require("fs");
 const { fetchChart, fetchQuoteSummary, buildQuote, fetchLiteQuote } = require("./src/yahoo");
 const { fetchNews } = require("./src/news");
 const { analyze, isConfigured } = require("./src/analyze");
-const { fetchMarketOverview, fetchTopMovers } = require("./src/market");
+const { fetchMarketOverview, fetchTopMovers, fetchRecentMovers } = require("./src/market");
+
+const VALID_MOVER_WINDOWS = new Set([10, 30, 60]);
 
 const app = express();
 const PORT = process.env.PORT || 4173;
@@ -61,8 +63,11 @@ app.get("/api/market-overview", async (req, res) => {
 });
 
 app.get("/api/top-movers", async (req, res) => {
+  const windowMinutes = Number(req.query.window);
   try {
-    const movers = await fetchTopMovers();
+    const movers = VALID_MOVER_WINDOWS.has(windowMinutes)
+      ? await fetchRecentMovers(windowMinutes)
+      : await fetchTopMovers();
     res.json(movers);
   } catch (err) {
     res.status(502).json({ error: err.message || "Failed to fetch top movers" });

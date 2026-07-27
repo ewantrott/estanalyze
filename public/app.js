@@ -11,15 +11,9 @@ const businessSummary = document.getElementById("business-summary");
 const newsList = document.getElementById("news-list");
 const analysisContent = document.getElementById("analysis-content");
 const watchlistToggle = document.getElementById("watchlist-toggle");
+const moversCard = document.getElementById("movers-card");
 
 let currentQuote = null;
-
-document.querySelectorAll(".chip").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    input.value = btn.dataset.ticker;
-    runSearch(btn.dataset.ticker);
-  });
-});
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -65,6 +59,7 @@ function escapeHtml(str) {
 async function runSearch(rawTicker) {
   const ticker = rawTicker.toUpperCase();
   results.classList.add("hidden");
+  moversCard.classList.add("hidden");
   setStatus(`Loading ${ticker}...`);
   analysisContent.textContent = "";
   newsList.innerHTML = "";
@@ -291,15 +286,38 @@ async function loadMarketOverview() {
 
 const gainersList = document.getElementById("gainers-list");
 const losersList = document.getElementById("losers-list");
+const moversFilter = document.getElementById("movers-filter");
+const moversNote = document.getElementById("movers-note");
+
+const MOVERS_NOTES = {
+  day: "Day-level gainers/losers across the market.",
+  10: "Last 10 minutes, scanned across a curated set of large, liquid stocks (not the full market).",
+  30: "Last 30 minutes, scanned across a curated set of large, liquid stocks (not the full market).",
+  60: "Last hour, scanned across a curated set of large, liquid stocks (not the full market).",
+};
 
 bindMoverGridClicks(gainersList);
 bindMoverGridClicks(losersList);
 
-async function loadTopMovers() {
+let currentMoversWindow = "day";
+
+moversFilter.querySelectorAll(".filter-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (btn.dataset.window === currentMoversWindow) return;
+    moversFilter.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentMoversWindow = btn.dataset.window;
+    loadTopMovers(currentMoversWindow);
+  });
+});
+
+async function loadTopMovers(windowParam = "day") {
   gainersList.innerHTML = "<div class=\"panel-note loading\">Loading...</div>";
   losersList.innerHTML = "<div class=\"panel-note loading\">Loading...</div>";
+  moversNote.textContent = MOVERS_NOTES[windowParam] || "";
   try {
-    const res = await fetch("/api/top-movers");
+    const url = windowParam === "day" ? "/api/top-movers" : `/api/top-movers?window=${windowParam}`;
+    const res = await fetch(url);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Failed to load top movers");
     gainersList.innerHTML = (data.gainers || []).map((item, i) => moverCardHtml(item, { index: i })).join("") ||

@@ -52,18 +52,17 @@
         <button type="submit">Analyze</button>
       </form>
 
-      <div class="quick-picks">
-        <span>Try:</span>
-        <button type="button" class="chip" data-ticker="AAPL">AAPL</button>
-        <button type="button" class="chip" data-ticker="MSFT">MSFT</button>
-        <button type="button" class="chip" data-ticker="NVDA">NVDA</button>
-        <button type="button" class="chip" data-ticker="^GSPC">S&amp;P 500</button>
-        <button type="button" class="chip" data-ticker="^IXIC">Nasdaq</button>
-        <button type="button" class="chip" data-ticker="^DJI">Dow</button>
-      </div>
-
       <div class="card" id="movers-card">
-        <h2>Top Movers</h2>
+        <div class="movers-header">
+          <h2>Top Movers</h2>
+          <div class="movers-filter" id="movers-filter">
+            <button type="button" class="filter-btn active" data-window="day">Today</button>
+            <button type="button" class="filter-btn" data-window="10">10m</button>
+            <button type="button" class="filter-btn" data-window="30">30m</button>
+            <button type="button" class="filter-btn" data-window="60">1h</button>
+          </div>
+        </div>
+        <p class="panel-note" id="movers-note">Day-level gainers/losers across the market.</p>
         <div class="movers-columns">
           <div class="movers-col">
             <div class="movers-subhead up">Gainers</div>
