@@ -195,17 +195,42 @@ const tabPanels = {
   watchlist: document.getElementById("tab-watchlist"),
 };
 
-tabButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    tabButtons.forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    Object.entries(tabPanels).forEach(([name, panel]) => {
-      panel.classList.toggle("hidden", name !== btn.dataset.tab);
-    });
-    if (btn.dataset.tab === "market") loadMarketOverview();
-    if (btn.dataset.tab === "watchlist") loadWatchlist();
+function activateTab(name) {
+  tabButtons.forEach((b) => b.classList.toggle("active", b.dataset.tab === name));
+  Object.entries(tabPanels).forEach(([panelName, panel]) => {
+    panel.classList.toggle("hidden", panelName !== name);
   });
+  if (name === "market") loadMarketOverview();
+  if (name === "watchlist") loadWatchlist();
+}
+
+tabButtons.forEach((btn) => {
+  btn.addEventListener("click", () => activateTab(btn.dataset.tab));
 });
+
+// Clicking any ticker card (watchlist, market overview, top movers) jumps
+// to the Analyze tab and looks it up, like clicking a quick-pick chip.
+function goToTicker(symbol) {
+  input.value = symbol;
+  activateTab("analyze");
+  runSearch(symbol);
+}
+
+function bindMoverGridClicks(container) {
+  container.addEventListener("click", (e) => {
+    const removeBtn = e.target.closest(".mover-remove");
+    if (removeBtn) {
+      removeFromWatchlist(removeBtn.dataset.remove);
+      if (currentQuote && currentQuote.symbol === removeBtn.dataset.remove) updateWatchlistToggle();
+      loadWatchlist(true);
+      return;
+    }
+    const card = e.target.closest(".mover-card");
+    if (!card || card.classList.contains("error")) return;
+    const symbol = card.dataset.symbol;
+    if (symbol) goToTicker(symbol);
+  });
+}
 
 // ---------- Shared mover-card rendering (indexes, sectors, watchlist) ----------
 
@@ -227,7 +252,7 @@ function moverCardHtml(item, { removable, index = 0 } = {}) {
     ? `<button type="button" class="mover-remove" data-remove="${escapeHtml(item.symbol)}" title="Remove">&times;</button>`
     : "";
 
-  return `<div class="mover-card" ${delay}>
+  return `<div class="mover-card" data-symbol="${escapeHtml(item.symbol)}" ${delay}>
     ${removeBtn}
     <div class="mover-symbol">${escapeHtml(item.symbol)}</div>
     <div class="mover-name">${escapeHtml(item.label || item.name || "")}</div>
@@ -241,6 +266,9 @@ function moverCardHtml(item, { removable, index = 0 } = {}) {
 const indexGrid = document.getElementById("index-grid");
 const sectorGrid = document.getElementById("sector-grid");
 let marketOverviewLoaded = false;
+
+bindMoverGridClicks(indexGrid);
+bindMoverGridClicks(sectorGrid);
 
 async function loadMarketOverview() {
   if (marketOverviewLoaded) return;
@@ -259,6 +287,33 @@ async function loadMarketOverview() {
   }
 }
 
+// ---------- Top Movers (homepage) ----------
+
+const gainersList = document.getElementById("gainers-list");
+const losersList = document.getElementById("losers-list");
+
+bindMoverGridClicks(gainersList);
+bindMoverGridClicks(losersList);
+
+async function loadTopMovers() {
+  gainersList.innerHTML = "<div class=\"panel-note loading\">Loading...</div>";
+  losersList.innerHTML = "<div class=\"panel-note loading\">Loading...</div>";
+  try {
+    const res = await fetch("/api/top-movers");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load top movers");
+    gainersList.innerHTML = (data.gainers || []).map((item, i) => moverCardHtml(item, { index: i })).join("") ||
+      "<div class=\"panel-note\">No data available.</div>";
+    losersList.innerHTML = (data.losers || []).map((item, i) => moverCardHtml(item, { index: i })).join("") ||
+      "<div class=\"panel-note\">No data available.</div>";
+  } catch (err) {
+    gainersList.innerHTML = `<div class="panel-note">Couldn't load: ${escapeHtml(err.message)}</div>`;
+    losersList.innerHTML = "";
+  }
+}
+
+loadTopMovers();
+
 // ---------- Watchlist ----------
 
 const WATCHLIST_KEY = "estanalyze_watchlist";
@@ -267,6 +322,8 @@ const watchlistInput = document.getElementById("watchlist-input");
 const watchlistStatusEl = document.getElementById("watchlist-status");
 const watchlistGrid = document.getElementById("watchlist-grid");
 const watchlistEmpty = document.getElementById("watchlist-empty");
+
+bindMoverGridClicks(watchlistGrid);
 
 function getWatchlist() {
   try {
@@ -350,14 +407,6 @@ async function loadWatchlist(force = false) {
       .join("");
     watchlistGrid.dataset.loadedFor = symbols.join(",");
     marketWatchlistDirty = false;
-
-    watchlistGrid.querySelectorAll("[data-remove]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        removeFromWatchlist(btn.dataset.remove);
-        if (currentQuote && currentQuote.symbol === btn.dataset.remove) updateWatchlistToggle();
-        loadWatchlist(true);
-      });
-    });
   } catch (err) {
     watchlistStatusEl.textContent = `Couldn't load watchlist: ${err.message}`;
     watchlistStatusEl.classList.add("error");

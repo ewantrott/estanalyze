@@ -1,5 +1,10 @@
 const { fetchLiteQuote } = require("./yahoo");
 
+const SCREENER_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+};
+
 const INDEXES = [
   { symbol: "^GSPC", label: "S&P 500" },
   { symbol: "^DJI", label: "Dow Jones" },
@@ -37,4 +42,32 @@ async function fetchMarketOverview() {
   return { indexes, sectors };
 }
 
-module.exports = { fetchMarketOverview };
+// Yahoo's predefined stock screeners (day_gainers/day_losers), used for a
+// lightweight "top movers" feed. Works without the session/crumb dance
+// full quoteSummary needs.
+async function fetchScreener(scrId, count = 6) {
+  const url = `https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?formatted=false&lang=en-US&region=US&scrIds=${encodeURIComponent(
+    scrId
+  )}&count=${count}`;
+  const res = await fetch(url, { headers: SCREENER_HEADERS });
+  if (!res.ok) throw new Error(`Screener request failed (${res.status})`);
+  const data = await res.json();
+  const quotes = data?.finance?.result?.[0]?.quotes || [];
+  return quotes.map((q) => ({
+    symbol: q.symbol,
+    name: q.shortName || q.longName || q.symbol,
+    price: q.regularMarketPrice ?? null,
+    change: q.regularMarketChange ?? null,
+    changePercent: q.regularMarketChangePercent ?? null,
+  }));
+}
+
+async function fetchTopMovers(count = 6) {
+  const [gainers, losers] = await Promise.all([
+    fetchScreener("day_gainers", count).catch(() => []),
+    fetchScreener("day_losers", count).catch(() => []),
+  ]);
+  return { gainers, losers };
+}
+
+module.exports = { fetchMarketOverview, fetchTopMovers };

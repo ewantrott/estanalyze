@@ -183,14 +183,43 @@ main { max-width: 800px; margin: 0 auto; }
   border-radius: var(--radius-sm);
   padding: 0.85rem 1rem;
   position: relative;
+  cursor: pointer;
   transition: transform 0.18s var(--ease), border-color 0.18s var(--ease), background 0.18s var(--ease);
   animation: fadeInUp 0.35s var(--ease) backwards;
 }
 
 .mover-card:hover {
   transform: translateY(-2px);
-  border-color: var(--border-hover);
+  border-color: var(--accent);
   background: var(--card-bg-hover);
+}
+
+.mover-card.error { cursor: default; }
+.mover-card.error:hover { transform: none; border-color: var(--border); }
+
+.movers-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.movers-col .mover-grid-compact {
+  grid-template-columns: 1fr;
+}
+
+.movers-subhead {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.6rem;
+}
+
+.movers-subhead.up { color: var(--up); }
+.movers-subhead.down { color: var(--down); }
+
+@media (max-width: 560px) {
+  .movers-columns { grid-template-columns: 1fr; gap: 1.25rem; }
 }
 
 .mover-symbol { font-weight: 700; font-size: 0.95rem; letter-spacing: -0.01em; }

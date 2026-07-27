@@ -62,6 +62,20 @@
         <button type="button" class="chip" data-ticker="^DJI">Dow</button>
       </div>
 
+      <div class="card" id="movers-card">
+        <h2>Top Movers</h2>
+        <div class="movers-columns">
+          <div class="movers-col">
+            <div class="movers-subhead up">Gainers</div>
+            <div id="gainers-list" class="mover-grid mover-grid-compact"></div>
+          </div>
+          <div class="movers-col">
+            <div class="movers-subhead down">Losers</div>
+            <div id="losers-list" class="mover-grid mover-grid-compact"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="status" class="status"></div>
 
       <section id="results" class="results hidden">

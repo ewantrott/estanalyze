@@ -6,7 +6,7 @@ const fs = require("fs");
 const { fetchChart, fetchQuoteSummary, buildQuote, fetchLiteQuote } = require("./src/yahoo");
 const { fetchNews } = require("./src/news");
 const { analyze, isConfigured } = require("./src/analyze");
-const { fetchMarketOverview } = require("./src/market");
+const { fetchMarketOverview, fetchTopMovers } = require("./src/market");
 
 const app = express();
 const PORT = process.env.PORT || 4173;
@@ -57,6 +57,15 @@ app.get("/api/market-overview", async (req, res) => {
     res.json(overview);
   } catch (err) {
     res.status(502).json({ error: err.message || "Failed to fetch market overview" });
+  }
+});
+
+app.get("/api/top-movers", async (req, res) => {
+  try {
+    const movers = await fetchTopMovers();
+    res.json(movers);
+  } catch (err) {
+    res.status(502).json({ error: err.message || "Failed to fetch top movers" });
   }
 });
 
