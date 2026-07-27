@@ -25,7 +25,10 @@ app.get("/", (req, res) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/status", (req, res) => {
-  res.json({ aiConfigured: isConfigured() });
+  // Temporary diagnostic: lists env var *names* containing "ANTHROPIC" (never values)
+  // to catch typos/whitespace in how the key was set on the host. Safe to remove later.
+  const anthropicKeyNames = Object.keys(process.env).filter((k) => k.toUpperCase().includes("ANTHROPIC"));
+  res.json({ aiConfigured: isConfigured(), anthropicKeyNames });
 });
 
 app.get("/api/quote/:ticker", async (req, res) => {
