@@ -3,26 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ESTAnalyze — Stock &amp; Market Analysis</title>
-  <meta name="description" content="Look up any stock ticker or market index for a live financial snapshot, recent news, and an AI-generated summary." />
-  <link rel="canonical" href="{{SITE_URL}}/" />
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem("estanalyze_theme");
+        if (stored) document.documentElement.setAttribute("data-theme", stored);
+      } catch (e) {}
+    })();
+  </script>
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}" />
+  <link rel="canonical" href="{{CANONICAL_URL}}" />
 
   <!-- Open Graph / Discord, Slack, Facebook embeds -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="ESTAnalyze" />
-  <meta property="og:title" content="ESTAnalyze — Stock &amp; Market Analysis" />
-  <meta property="og:description" content="Look up any stock ticker or market index for a live financial snapshot, recent news, and an AI-generated summary." />
-  <meta property="og:url" content="{{SITE_URL}}/" />
-  <meta property="og:image" content="{{SITE_URL}}/og-image.png" />
+  <meta property="og:title" content="{{TITLE}}" />
+  <meta property="og:description" content="{{DESCRIPTION}}" />
+  <meta property="og:url" content="{{CANONICAL_URL}}" />
+  <meta property="og:image" content="{{OG_IMAGE}}" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="theme-color" content="#0b0d12" />
 
   <!-- Twitter card (some Discord fallbacks also read these) -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="ESTAnalyze — Stock &amp; Market Analysis" />
-  <meta name="twitter:description" content="Look up any stock ticker or market index for a live financial snapshot, recent news, and an AI-generated summary." />
-  <meta name="twitter:image" content="{{SITE_URL}}/og-image.png" />
+  <meta name="twitter:title" content="{{TITLE}}" />
+  <meta name="twitter:description" content="{{DESCRIPTION}}" />
+  <meta name="twitter:image" content="{{OG_IMAGE}}" />
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,6 +39,16 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <button type="button" id="theme-toggle" class="theme-toggle" title="Toggle light/dark theme" aria-label="Toggle theme">
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  </button>
+
   <header>
     <div class="brand">
       <img src="/favicon.svg" alt="" class="brand-mark" />
@@ -47,8 +65,11 @@
     </nav>
 
     <section id="tab-analyze" class="tab-panel">
-      <form id="search-form">
-        <input id="ticker-input" type="text" placeholder="e.g. AAPL, TSLA, ^GSPC" autocomplete="off" />
+      <form id="search-form" autocomplete="off">
+        <div class="search-input-wrap">
+          <input id="ticker-input" type="text" placeholder="e.g. AAPL, TSLA, ^GSPC" autocomplete="off" />
+          <div id="search-suggestions" class="search-suggestions hidden"></div>
+        </div>
         <button type="submit">Analyze</button>
       </form>
 
@@ -89,6 +110,20 @@
           </div>
           <div class="stats-grid" id="stats-grid"></div>
           <p id="business-summary" class="business-summary"></p>
+        </div>
+
+        <div class="card" id="chart-card">
+          <div class="chart-header">
+            <h2>Price Chart</h2>
+            <div class="movers-filter" id="chart-range-filter">
+              <button type="button" class="filter-btn" data-range="1d">1D</button>
+              <button type="button" class="filter-btn" data-range="1w">1W</button>
+              <button type="button" class="filter-btn active" data-range="1mo">1M</button>
+              <button type="button" class="filter-btn" data-range="6mo">6M</button>
+              <button type="button" class="filter-btn" data-range="1y">1Y</button>
+            </div>
+          </div>
+          <div id="chart-container" class="chart-container"></div>
         </div>
 
         <div class="card" id="news-card">
@@ -146,6 +181,7 @@
     </footer>
   </main>
 
+  {{INITIAL_TICKER_SCRIPT}}
   <script src="app.js"></script>
 </body>
 </html>

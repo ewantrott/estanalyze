@@ -15,10 +15,137 @@ const moversCard = document.getElementById("movers-card");
 
 let currentQuote = null;
 
+// ---------- Theme toggle ----------
+
+const THEME_KEY = "estanalyze_theme";
+const themeToggle = document.getElementById("theme-toggle");
+
+function effectiveTheme() {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored) return stored;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
+function updateThemeColorMeta(theme) {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", theme === "light" ? "#f5f7fa" : "#0b0d12");
+}
+
+updateThemeColorMeta(effectiveTheme());
+
+themeToggle.addEventListener("click", () => {
+  const next = effectiveTheme() === "light" ? "dark" : "light";
+  localStorage.setItem(THEME_KEY, next);
+  document.documentElement.setAttribute("data-theme", next);
+  updateThemeColorMeta(next);
+});
+
 form.addEventListener("submit", (e) => {
   e.preventDefault();
+  hideSuggestions();
   const ticker = input.value.trim();
   if (ticker) runSearch(ticker);
+});
+
+// ---------- Ticker autocomplete ----------
+
+const suggestionsBox = document.getElementById("search-suggestions");
+let suggestionItems = [];
+let activeSuggestionIndex = -1;
+let searchDebounce = null;
+let searchRequestId = 0;
+
+function hideSuggestions() {
+  suggestionsBox.classList.add("hidden");
+  suggestionsBox.innerHTML = "";
+  suggestionItems = [];
+  activeSuggestionIndex = -1;
+}
+
+function renderSuggestions(items) {
+  suggestionItems = items;
+  activeSuggestionIndex = -1;
+  if (!items.length) {
+    hideSuggestions();
+    return;
+  }
+  suggestionsBox.innerHTML = items
+    .map(
+      (item, i) => `<div class="suggestion-item" data-index="${i}">
+        <span class="suggestion-symbol">${escapeHtml(item.symbol)}</span>
+        <span class="suggestion-name">${escapeHtml(item.name)}</span>
+        <span class="suggestion-exchange">${escapeHtml(item.exchange || "")}</span>
+      </div>`
+    )
+    .join("");
+  suggestionsBox.classList.remove("hidden");
+
+  suggestionsBox.querySelectorAll(".suggestion-item").forEach((el) => {
+    el.addEventListener("mousedown", (e) => {
+      e.preventDefault(); // keep focus/avoid input blur before click registers
+      selectSuggestion(Number(el.dataset.index));
+    });
+  });
+}
+
+function selectSuggestion(i) {
+  const item = suggestionItems[i];
+  if (!item) return;
+  input.value = item.symbol;
+  hideSuggestions();
+  runSearch(item.symbol);
+}
+
+function highlightSuggestion(index) {
+  activeSuggestionIndex = index;
+  suggestionsBox.querySelectorAll(".suggestion-item").forEach((el, i) => {
+    el.classList.toggle("active", i === index);
+    if (i === index) el.scrollIntoView({ block: "nearest" });
+  });
+}
+
+input.addEventListener("input", () => {
+  const query = input.value.trim();
+  clearTimeout(searchDebounce);
+  if (query.length < 1) {
+    hideSuggestions();
+    return;
+  }
+  searchDebounce = setTimeout(async () => {
+    const thisRequest = ++searchRequestId;
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (thisRequest !== searchRequestId) return; // stale response, a newer query superseded it
+      renderSuggestions(data.results || []);
+    } catch {
+      if (thisRequest === searchRequestId) hideSuggestions();
+    }
+  }, 250);
+});
+
+input.addEventListener("keydown", (e) => {
+  if (suggestionsBox.classList.contains("hidden")) return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    highlightSuggestion(Math.min(activeSuggestionIndex + 1, suggestionItems.length - 1));
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    highlightSuggestion(Math.max(activeSuggestionIndex - 1, 0));
+  } else if (e.key === "Enter") {
+    if (activeSuggestionIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(activeSuggestionIndex);
+    } else {
+      hideSuggestions();
+    }
+  } else if (e.key === "Escape") {
+    hideSuggestions();
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".search-input-wrap")) hideSuggestions();
 });
 
 function setStatus(text, isError = false) {
@@ -56,6 +183,16 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Makes the current search shareable: after looking up a ticker, the URL
+// reflects it (e.g. /AAPL) so copying the address bar link works, and that
+// link gets a per-ticker Discord embed via the server's og:image route.
+function updateUrlForTicker(ticker) {
+  const targetPath = "/" + encodeURIComponent(ticker);
+  if (window.location.pathname !== targetPath) {
+    history.pushState({ ticker }, "", targetPath);
+  }
+}
+
 async function runSearch(rawTicker) {
   const ticker = rawTicker.toUpperCase();
   results.classList.add("hidden");
@@ -80,6 +217,11 @@ async function runSearch(rawTicker) {
   renderQuote(quote);
   results.classList.remove("hidden");
   setStatus("");
+  updateUrlForTicker(ticker);
+  document.title = `${ticker} — ${quote.name} | ESTAnalyze`;
+
+  resetChartRangeButtons();
+  loadPriceChart(ticker, "1mo");
 
   let news = [];
   try {
@@ -181,6 +323,92 @@ function renderNews(news) {
     .join("");
 }
 
+// ---------- Price Chart ----------
+
+const chartContainer = document.getElementById("chart-container");
+const chartRangeFilter = document.getElementById("chart-range-filter");
+let currentChartTicker = null;
+
+function resetChartRangeButtons() {
+  chartRangeFilter.querySelectorAll(".filter-btn").forEach((b) => b.classList.toggle("active", b.dataset.range === "1mo"));
+}
+
+chartRangeFilter.querySelectorAll(".filter-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    if (!currentChartTicker || btn.classList.contains("active")) return;
+    chartRangeFilter.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    loadPriceChart(currentChartTicker, btn.dataset.range);
+  });
+});
+
+function fmtChartDate(unixSeconds, range) {
+  const d = new Date(unixSeconds * 1000);
+  if (range === "1d" || range === "1w") {
+    return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+function renderPriceChart(points, range) {
+  if (!points || points.length < 2) {
+    chartContainer.innerHTML = '<p class="panel-note">No chart data available for this range.</p>';
+    return;
+  }
+
+  const w = 700;
+  const h = 220;
+  const padX = 4;
+  const padY = 10;
+  const closes = points.map((p) => p.c);
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const spread = max - min || 1;
+  const up = closes[closes.length - 1] >= closes[0];
+  const dir = up ? "up" : "down";
+  const step = (w - padX * 2) / (points.length - 1);
+
+  const coords = points.map((p, i) => {
+    const x = padX + i * step;
+    const y = padY + (h - padY * 2) * (1 - (p.c - min) / spread);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+
+  const areaPath = `M${coords[0]} L${coords.join(" L")} L${(w - padX).toFixed(1)},${(h - padY).toFixed(1)} L${padX.toFixed(1)},${(h - padY).toFixed(1)} Z`;
+
+  chartContainer.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="price-chart-svg ${dir}">
+      <defs>
+        <linearGradient id="chart-fill-${dir}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-opacity="0.28" />
+          <stop offset="100%" stop-opacity="0" />
+        </linearGradient>
+      </defs>
+      <path d="${areaPath}" fill="url(#chart-fill-${dir})" stroke="none" />
+      <polyline points="${coords.join(" ")}" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    <div class="chart-range-labels">
+      <span>${escapeHtml(fmtChartDate(points[0].t, range))}</span>
+      <span>${escapeHtml(fmtChartDate(points[points.length - 1].t, range))}</span>
+    </div>
+  `;
+}
+
+async function loadPriceChart(ticker, range) {
+  currentChartTicker = ticker;
+  chartContainer.innerHTML = '<p class="panel-note loading">Loading chart...</p>';
+  try {
+    const res = await fetch(`/api/chart/${encodeURIComponent(ticker)}?range=${encodeURIComponent(range)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to load chart");
+    if (currentChartTicker !== ticker) return; // a newer search superseded this request
+    renderPriceChart(data.points, range);
+  } catch (err) {
+    if (currentChartTicker !== ticker) return;
+    chartContainer.innerHTML = `<p class="panel-note">Couldn't load chart: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
 // ---------- Tabs ----------
 
 const tabButtons = document.querySelectorAll(".tab");
@@ -229,6 +457,23 @@ function bindMoverGridClicks(container) {
 
 // ---------- Shared mover-card rendering (indexes, sectors, watchlist) ----------
 
+function sparklineSvg(points, dir) {
+  if (!Array.isArray(points) || points.length < 2) return "";
+  const w = 100;
+  const h = 32;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const step = w / (points.length - 1);
+  const coords = points
+    .map((p, i) => `${(i * step).toFixed(1)},${(h - ((p - min) / range) * h).toFixed(1)}`)
+    .join(" ");
+  const strokeClass = dir === "down" ? "spark-down" : "spark-up";
+  return `<svg class="sparkline ${strokeClass}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${coords}" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>`;
+}
+
 function moverCardHtml(item, { removable, index = 0 } = {}) {
   const delay = `style="animation-delay:${Math.min(index * 30, 300)}ms"`;
 
@@ -253,6 +498,7 @@ function moverCardHtml(item, { removable, index = 0 } = {}) {
     <div class="mover-name">${escapeHtml(item.label || item.name || "")}</div>
     <div class="mover-price">${item.price != null ? round2(item.price) : "n/a"}</div>
     <div class="mover-change ${dir}">${hasChange ? `${arrow} ${sign}${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)` : ""}</div>
+    ${sparklineSvg(item.sparkline, dir)}
   </div>`;
 }
 
@@ -430,4 +676,21 @@ async function loadWatchlist(force = false) {
     watchlistStatusEl.classList.add("error");
     watchlistGrid.innerHTML = "";
   }
+}
+
+// ---------- Deep links (/AAPL) ----------
+
+window.addEventListener("popstate", (e) => {
+  const ticker = e.state && e.state.ticker ? e.state.ticker : decodeURIComponent(window.location.pathname.slice(1) || "");
+  if (ticker) {
+    input.value = ticker;
+    activateTab("analyze");
+    runSearch(ticker);
+  }
+});
+
+if (window.__INITIAL_TICKER__) {
+  input.value = window.__INITIAL_TICKER__;
+  activateTab("analyze");
+  runSearch(window.__INITIAL_TICKER__);
 }

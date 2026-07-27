@@ -62,12 +62,32 @@ async function fetchScreener(scrId, count = 6) {
   }));
 }
 
+// The screener response has no historical prices, so sparklines for the
+// day view are filled in with one extra lightweight chart fetch per symbol.
+async function attachSparklines(items) {
+  const results = await Promise.allSettled(
+    items.map((item) => fetchChart(item.symbol, "5d").then((chart) => ({
+      symbol: item.symbol,
+      sparkline: (chart?.indicators?.quote?.[0]?.close || []).filter((c) => c != null),
+    })))
+  );
+  const sparklines = new Map();
+  results.forEach((r) => {
+    if (r.status === "fulfilled") sparklines.set(r.value.symbol, r.value.sparkline);
+  });
+  return items.map((item) => ({ ...item, sparkline: sparklines.get(item.symbol) || [] }));
+}
+
 async function fetchTopMovers(count = 6) {
   const [gainers, losers] = await Promise.all([
     fetchScreener("day_gainers", count).catch(() => []),
     fetchScreener("day_losers", count).catch(() => []),
   ]);
-  return { gainers, losers };
+  const [gainersWithSparklines, losersWithSparklines] = await Promise.all([
+    attachSparklines(gainers),
+    attachSparklines(losers),
+  ]);
+  return { gainers: gainersWithSparklines, losers: losersWithSparklines };
 }
 
 // Curated universe for the intraday (10m/30m/1h) filters. Yahoo has no
@@ -115,12 +135,14 @@ async function fetchRecentMovers(windowMinutes, count = 6) {
       const stats = windowedChange(chart, windowMinutes);
       if (!stats) throw new Error("insufficient intraday data");
       const meta = chart.meta || {};
+      const closes = (chart?.indicators?.quote?.[0]?.close || []).filter((c) => c != null);
       return {
         symbol,
         name: meta.longName || meta.shortName || symbol,
         price: stats.price,
         change: stats.change,
         changePercent: stats.changePercent,
+        sparkline: closes,
       };
     })
   );

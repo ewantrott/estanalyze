@@ -150,6 +150,10 @@ function buildLiteQuote(ticker, chart, summary) {
   const change = currentPrice != null && previousClose != null ? currentPrice - previousClose : null;
   const changePercent = change != null && previousClose ? (change / previousClose) * 100 : null;
 
+  // Reuses the daily closes already in this chart response (range=5d) for a
+  // tiny trend sparkline, rather than firing a second request per symbol.
+  const sparkline = (chart?.indicators?.quote?.[0]?.close || []).filter((c) => c != null);
+
   return {
     symbol: ticker,
     name: price.longName || price.shortName || meta.longName || meta.shortName || meta.symbol || ticker,
@@ -158,6 +162,7 @@ function buildLiteQuote(ticker, chart, summary) {
     change,
     changePercent,
     currency: meta.currency || null,
+    sparkline,
   };
 }
 
