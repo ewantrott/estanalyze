@@ -96,6 +96,19 @@ header {
   position: relative;
 }
 
+.header-decoration {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 900px;
+  height: 100px;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: -1;
+}
+
 .theme-toggle {
   position: fixed;
   top: 1.25rem;
@@ -240,6 +253,29 @@ main { max-width: 800px; margin: 0 auto; }
 @keyframes pulse {
   0%, 100% { opacity: 0.5; }
   50% { opacity: 1; }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  color: var(--muted);
+}
+
+.empty-state svg {
+  width: 40px;
+  height: 40px;
+  color: var(--muted-dim);
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.88rem;
+  max-width: 320px;
+  line-height: 1.5;
 }
 
 .mover-grid {
@@ -608,6 +644,16 @@ button:active { transform: scale(0.97); }
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.card-icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  color: var(--accent);
 }
 
 .price-row {

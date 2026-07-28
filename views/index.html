@@ -50,6 +50,15 @@
   </button>
 
   <header>
+    <svg class="header-decoration" viewBox="0 0 900 160" preserveAspectRatio="none" aria-hidden="true">
+      <polyline points="0,120 90,95 170,110 260,70 340,85 430,45 520,60 610,25 700,40 790,10 900,20" fill="none" stroke="url(#header-grad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <defs>
+        <linearGradient id="header-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#5fb0ff" />
+          <stop offset="100%" stop-color="#3ecf8e" />
+        </linearGradient>
+      </defs>
+    </svg>
     <div class="brand">
       <img src="/favicon.svg" alt="" class="brand-mark" />
       <span class="brand-name">ESTAnalyze</span>
@@ -76,7 +85,7 @@
 
       <div class="card" id="movers-card">
         <div class="movers-header">
-          <h2>Top Movers</h2>
+          <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>Top Movers</h2>
           <div class="movers-filter" id="movers-filter">
             <button type="button" class="filter-btn active" data-window="day">Today</button>
             <button type="button" class="filter-btn" data-window="10">10m</button>
@@ -115,7 +124,7 @@
 
         <div class="card" id="chart-card">
           <div class="chart-header">
-            <h2>Price Chart</h2>
+            <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>Price Chart</h2>
             <div class="movers-filter" id="chart-range-filter">
               <button type="button" class="filter-btn" data-range="1d">1D</button>
               <button type="button" class="filter-btn" data-range="1w">1W</button>
@@ -128,17 +137,17 @@
         </div>
 
         <div class="card" id="earnings-card">
-          <h2>Earnings</h2>
+          <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>Earnings</h2>
           <div id="earnings-content"></div>
         </div>
 
         <div class="card" id="news-card">
-          <h2>Recent News</h2>
+          <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9" /><path d="M4 4a16 16 0 0 1 16 16" /><circle cx="5" cy="19" r="1" /></svg>Recent News</h2>
           <ul id="news-list" class="news-list"></ul>
         </div>
 
         <div class="card" id="analysis-card">
-          <h2>AI Analysis</h2>
+          <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M5 12H1M23 12h-4M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8M18.4 18.4l-2.8-2.8M8.4 8.4L5.6 5.6" /></svg>AI Analysis</h2>
           <div id="analysis-content" class="analysis-content"></div>
         </div>
       </section>
@@ -146,11 +155,11 @@
 
     <section id="tab-market" class="tab-panel hidden">
       <div class="card">
-        <h2>Major Indexes</h2>
+        <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></svg>Major Indexes</h2>
         <div id="index-grid" class="mover-grid"></div>
       </div>
       <div class="card">
-        <h2>Sector Performance</h2>
+        <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></svg>Sector Performance</h2>
         <p class="panel-note">S&amp;P 500 sector ETFs, used as a proxy for sector performance.</p>
         <div id="sector-grid" class="mover-grid"></div>
       </div>
@@ -158,7 +167,7 @@
 
     <section id="tab-screener" class="tab-panel hidden">
       <div class="card">
-        <h2>Stock Screener</h2>
+        <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>Stock Screener</h2>
         <p class="panel-note">Filters major NYSE/Nasdaq-listed stocks. Leave a field blank to skip that filter.</p>
         <form id="screener-form" class="screener-form">
           <div class="screener-field">
@@ -249,8 +258,10 @@
       </form>
       <div id="watchlist-status" class="status"></div>
       <div class="card">
-        <div id="watchlist-empty" class="panel-note hidden">
-          Your watchlist is empty. Add a ticker above, or use the "+ Watchlist" button after analyzing one.
+        <h2><svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>Your Watchlist</h2>
+        <div id="watchlist-empty" class="empty-state hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+          <p>Your watchlist is empty. Add a ticker above, or use the "+ Watchlist" button after analyzing one.</p>
         </div>
         <div id="watchlist-grid" class="mover-grid"></div>
       </div>
