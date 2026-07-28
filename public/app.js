@@ -12,6 +12,7 @@ const newsList = document.getElementById("news-list");
 const analysisContent = document.getElementById("analysis-content");
 const watchlistToggle = document.getElementById("watchlist-toggle");
 const moversCard = document.getElementById("movers-card");
+const earningsContent = document.getElementById("earnings-content");
 
 let currentQuote = null;
 
@@ -215,6 +216,7 @@ async function runSearch(rawTicker) {
 
   currentQuote = quote;
   renderQuote(quote);
+  renderEarnings(quote);
   results.classList.remove("hidden");
   setStatus("");
   updateUrlForTicker(ticker);
@@ -305,6 +307,50 @@ function renderQuote(quote) {
   }
 
   updateWatchlistToggle();
+}
+
+function renderEarnings(quote) {
+  const summaryItems = [
+    ["Next Earnings Date", quote.nextEarningsDate ? quote.nextEarningsDate + (quote.isEarningsDateEstimate ? " (est.)" : "") : "n/a"],
+    ["EPS Estimate", quote.epsEstimateAverage != null ? round2(quote.epsEstimateAverage) : "n/a"],
+    ["Revenue Estimate", quote.revenueEstimateAverage != null ? fmtNumber(quote.revenueEstimateAverage) : "n/a"],
+    ["Ex-Dividend Date", quote.exDividendDate || "n/a"],
+  ];
+
+  const summaryHtml = `<div class="earnings-summary">${summaryItems
+    .map(([label, value]) => `<div><div class="stat-label">${label}</div><div class="stat-value">${value}</div></div>`)
+    .join("")}</div>`;
+
+  const history = quote.earningsHistory || [];
+  if (!history.length) {
+    earningsContent.innerHTML = summaryHtml + '<p class="panel-note">No recent quarterly earnings history available.</p>';
+    return;
+  }
+
+  const rows = history
+    .map((q) => {
+      const beat = q.surprisePercent != null && q.surprisePercent >= 0;
+      const dir = q.surprisePercent != null ? (beat ? "up" : "down") : "";
+      const sign = q.surprisePercent != null && q.surprisePercent >= 0 ? "+" : "";
+      return `<tr>
+        <td>${escapeHtml(q.quarter || "n/a")}</td>
+        <td>${q.epsActual != null ? round2(q.epsActual) : "n/a"}</td>
+        <td>${q.epsEstimate != null ? round2(q.epsEstimate) : "n/a"}</td>
+        <td class="earnings-surprise ${dir}">${q.surprisePercent != null ? `${sign}${q.surprisePercent.toFixed(2)}%` : "n/a"}</td>
+        <td>${escapeHtml(q.reportedDate || "n/a")}</td>
+      </tr>`;
+    })
+    .join("");
+
+  earningsContent.innerHTML = `${summaryHtml}
+    <div class="table-scroll">
+      <table class="earnings-history-table">
+        <thead>
+          <tr><th>Quarter</th><th>EPS Actual</th><th>EPS Estimate</th><th>Surprise</th><th>Reported</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function renderNews(news) {
@@ -415,6 +461,7 @@ const tabButtons = document.querySelectorAll(".tab");
 const tabPanels = {
   analyze: document.getElementById("tab-analyze"),
   market: document.getElementById("tab-market"),
+  screener: document.getElementById("tab-screener"),
   watchlist: document.getElementById("tab-watchlist"),
 };
 
@@ -425,6 +472,7 @@ function activateTab(name) {
   });
   if (name === "market") loadMarketOverview();
   if (name === "watchlist") loadWatchlist();
+  if (name === "screener") loadScreenerSectors();
 }
 
 tabButtons.forEach((btn) => {
@@ -527,6 +575,103 @@ async function loadMarketOverview() {
     sectorGrid.innerHTML = "";
   }
 }
+
+// ---------- Screener ----------
+
+const screenerForm = document.getElementById("screener-form");
+const screenerSector = document.getElementById("screener-sector");
+const screenerStatus = document.getElementById("screener-status");
+const screenerTable = document.getElementById("screener-table");
+const screenerResults = document.getElementById("screener-results");
+let screenerSectorsLoaded = false;
+
+async function loadScreenerSectors() {
+  if (screenerSectorsLoaded) return;
+  try {
+    const res = await fetch("/api/screener/sectors");
+    const data = await res.json();
+    (data.sectors || []).forEach((sector) => {
+      const opt = document.createElement("option");
+      opt.value = sector;
+      opt.textContent = sector;
+      screenerSector.appendChild(opt);
+    });
+    screenerSectorsLoaded = true;
+  } catch {
+    // non-fatal; "All sectors" option still works
+  }
+}
+
+function screenerRowHtml(item) {
+  const hasChange = item.change != null && item.changePercent != null;
+  const dir = hasChange ? (item.change >= 0 ? "up" : "down") : "";
+  const sign = hasChange && item.change >= 0 ? "+" : "";
+  const changeText = hasChange ? `${sign}${item.change.toFixed(2)} (${sign}${item.changePercent.toFixed(2)}%)` : "n/a";
+
+  return `<tr data-symbol="${escapeHtml(item.symbol)}">
+    <td class="sym-cell">${escapeHtml(item.symbol)}</td>
+    <td class="name-cell">${escapeHtml(item.name)}</td>
+    <td>${item.price != null ? round2(item.price) : "n/a"}</td>
+    <td class="change-cell ${dir}">${changeText}</td>
+    <td>${fmtNumber(item.marketCap)}</td>
+    <td>${item.peRatio != null ? round2(item.peRatio) : "n/a"}</td>
+    <td>${item.dividendYield != null ? fmtPercent(item.dividendYield) : "n/a"}</td>
+    <td>${fmtNumber(item.volume)}</td>
+  </tr>`;
+}
+
+screenerTable.addEventListener("click", (e) => {
+  const row = e.target.closest("tr[data-symbol]");
+  if (row) goToTicker(row.dataset.symbol);
+});
+
+screenerForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const capMinB = document.getElementById("screener-cap-min").value;
+  const capMaxB = document.getElementById("screener-cap-max").value;
+  const priceMin = document.getElementById("screener-price-min").value;
+  const priceMax = document.getElementById("screener-price-max").value;
+  const peMin = document.getElementById("screener-pe-min").value;
+  const peMax = document.getElementById("screener-pe-max").value;
+  const divMin = document.getElementById("screener-div-min").value;
+  const volMinM = document.getElementById("screener-vol-min").value;
+
+  const params = new URLSearchParams();
+  if (screenerSector.value) params.set("sector", screenerSector.value);
+  if (capMinB) params.set("marketCapMin", String(Number(capMinB) * 1e9));
+  if (capMaxB) params.set("marketCapMax", String(Number(capMaxB) * 1e9));
+  if (priceMin) params.set("priceMin", priceMin);
+  if (priceMax) params.set("priceMax", priceMax);
+  if (peMin) params.set("peMin", peMin);
+  if (peMax) params.set("peMax", peMax);
+  if (divMin) params.set("dividendYieldMin", divMin);
+  if (volMinM) params.set("volumeMin", String(Number(volMinM) * 1e6));
+  params.set("sortField", document.getElementById("screener-sort").value);
+  params.set("sortDir", document.getElementById("screener-sort-dir").value);
+
+  screenerStatus.textContent = "Running screener...";
+  screenerStatus.classList.remove("error");
+  screenerTable.classList.add("hidden");
+
+  try {
+    const res = await fetch(`/api/screener?${params.toString()}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Screener failed");
+    if (!data.results.length) {
+      screenerStatus.textContent = "No matches. Try widening your filters.";
+      screenerResults.innerHTML = "";
+      return;
+    }
+    screenerResults.innerHTML = data.results.map(screenerRowHtml).join("");
+    screenerTable.classList.remove("hidden");
+    screenerStatus.textContent = `${data.total.toLocaleString()} match${data.total === 1 ? "" : "es"} — showing top ${data.results.length}.`;
+  } catch (err) {
+    screenerStatus.textContent = `Couldn't run screener: ${err.message}`;
+    screenerStatus.classList.add("error");
+    screenerResults.innerHTML = "";
+  }
+});
 
 // ---------- Top Movers (homepage) ----------
 

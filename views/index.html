@@ -61,6 +61,7 @@
     <nav class="tabs" id="tabs">
       <button type="button" class="tab active" data-tab="analyze">Analyze</button>
       <button type="button" class="tab" data-tab="market">Market Overview</button>
+      <button type="button" class="tab" data-tab="screener">Screener</button>
       <button type="button" class="tab" data-tab="watchlist">Watchlist</button>
     </nav>
 
@@ -126,6 +127,11 @@
           <div id="chart-container" class="chart-container"></div>
         </div>
 
+        <div class="card" id="earnings-card">
+          <h2>Earnings</h2>
+          <div id="earnings-content"></div>
+        </div>
+
         <div class="card" id="news-card">
           <h2>Recent News</h2>
           <ul id="news-list" class="news-list"></ul>
@@ -147,6 +153,92 @@
         <h2>Sector Performance</h2>
         <p class="panel-note">S&amp;P 500 sector ETFs, used as a proxy for sector performance.</p>
         <div id="sector-grid" class="mover-grid"></div>
+      </div>
+    </section>
+
+    <section id="tab-screener" class="tab-panel hidden">
+      <div class="card">
+        <h2>Stock Screener</h2>
+        <p class="panel-note">Filters major NYSE/Nasdaq-listed stocks. Leave a field blank to skip that filter.</p>
+        <form id="screener-form" class="screener-form">
+          <div class="screener-field">
+            <label for="screener-sector">Sector</label>
+            <select id="screener-sector">
+              <option value="">All sectors</option>
+            </select>
+          </div>
+          <div class="screener-field">
+            <label for="screener-cap-min">Market Cap ($B)</label>
+            <div class="screener-range">
+              <input id="screener-cap-min" type="number" placeholder="Min" min="0" step="any" />
+              <span>–</span>
+              <input id="screener-cap-max" type="number" placeholder="Max" min="0" step="any" />
+            </div>
+          </div>
+          <div class="screener-field">
+            <label for="screener-price-min">Price ($)</label>
+            <div class="screener-range">
+              <input id="screener-price-min" type="number" placeholder="Min" min="0" step="any" />
+              <span>–</span>
+              <input id="screener-price-max" type="number" placeholder="Max" min="0" step="any" />
+            </div>
+          </div>
+          <div class="screener-field">
+            <label for="screener-pe-min">P/E Ratio</label>
+            <div class="screener-range">
+              <input id="screener-pe-min" type="number" placeholder="Min" min="0" step="any" />
+              <span>–</span>
+              <input id="screener-pe-max" type="number" placeholder="Max" min="0" step="any" />
+            </div>
+          </div>
+          <div class="screener-field">
+            <label for="screener-div-min">Min Dividend Yield (%)</label>
+            <input id="screener-div-min" type="number" placeholder="e.g. 2" min="0" step="any" />
+          </div>
+          <div class="screener-field">
+            <label for="screener-vol-min">Min Volume (M)</label>
+            <input id="screener-vol-min" type="number" placeholder="e.g. 1" min="0" step="any" />
+          </div>
+          <div class="screener-field">
+            <label for="screener-sort">Sort by</label>
+            <div class="screener-range">
+              <select id="screener-sort">
+                <option value="marketCap">Market Cap</option>
+                <option value="changePercent">% Change</option>
+                <option value="volume">Volume</option>
+                <option value="price">Price</option>
+                <option value="peRatio">P/E Ratio</option>
+                <option value="dividendYield">Dividend Yield</option>
+              </select>
+              <select id="screener-sort-dir">
+                <option value="DESC">High to Low</option>
+                <option value="ASC">Low to High</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="screener-submit">Run Screener</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <div id="screener-status" class="status"></div>
+        <div class="table-scroll">
+          <table id="screener-table" class="screener-table hidden">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Change</th>
+                <th>Market Cap</th>
+                <th>P/E</th>
+                <th>Div Yield</th>
+                <th>Volume</th>
+              </tr>
+            </thead>
+            <tbody id="screener-results"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 

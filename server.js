@@ -9,6 +9,7 @@ const { analyze, isConfigured } = require("./src/analyze");
 const { fetchMarketOverview, fetchTopMovers, fetchRecentMovers } = require("./src/market");
 const { searchTickers } = require("./src/search");
 const { renderTickerOgImage } = require("./src/ogImage");
+const { runScreener, SECTORS } = require("./src/screener");
 
 const VALID_MOVER_WINDOWS = new Set([10, 30, 60]);
 
@@ -74,6 +75,19 @@ app.get("/api/quote/:ticker", async (req, res) => {
     res.json(buildQuote(ticker, chart, summary));
   } catch (err) {
     res.status(404).json({ error: err.message || "Failed to fetch quote" });
+  }
+});
+
+app.get("/api/screener/sectors", (req, res) => {
+  res.json({ sectors: SECTORS });
+});
+
+app.get("/api/screener", async (req, res) => {
+  try {
+    const data = await runScreener(req.query);
+    res.json(data);
+  } catch (err) {
+    res.status(502).json({ error: err.message || "Screener request failed" });
   }
 });
 

@@ -12,7 +12,9 @@ const chartUrl = (ticker, range = "6mo", interval = "1d") =>
 const quoteSummaryUrl = (ticker, crumb) =>
   `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(
     ticker
-  )}?modules=price,summaryDetail,defaultKeyStatistics,financialData,assetProfile&crumb=${encodeURIComponent(crumb)}`;
+  )}?modules=price,summaryDetail,defaultKeyStatistics,financialData,assetProfile,calendarEvents,earnings&crumb=${encodeURIComponent(
+    crumb
+  )}`;
 
 async function fetchChart(ticker, range = "6mo", interval = "1d") {
   const res = await fetch(chartUrl(ticker, range, interval), { headers: HEADERS });
@@ -51,6 +53,26 @@ async function fetchSession() {
 async function getSession() {
   if (!sessionCache) sessionCache = await fetchSession();
   return sessionCache;
+}
+
+// Generic authenticated request helper (adds the session cookie + crumb,
+// retries once with a fresh session on 401) for endpoints beyond
+// quoteSummary that also need it, e.g. the custom screener.
+async function fetchAuthenticated(url, options = {}) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const session = await getSession();
+    const sep = url.includes("?") ? "&" : "?";
+    const res = await fetch(`${url}${sep}crumb=${encodeURIComponent(session.crumb)}`, {
+      ...options,
+      headers: { ...HEADERS, ...(options.headers || {}), Cookie: session.cookie },
+    });
+    if (res.status === 401 && attempt === 0) {
+      sessionCache = null;
+      continue;
+    }
+    return res;
+  }
+  throw new Error("Yahoo authentication failed");
 }
 
 // Extended fundamentals are best-effort: if Yahoo's session/crumb dance
@@ -93,6 +115,21 @@ function derivePreviousClose(chart) {
   return nonNull[nonNull.length - 2];
 }
 
+// Last 4 reported quarters of actual-vs-estimate EPS, most recent first.
+function extractEarningsHistory(earnings) {
+  const quarters = earnings?.earningsChart?.quarterly || [];
+  return quarters
+    .slice(-4)
+    .reverse()
+    .map((q) => ({
+      quarter: q.date || null,
+      epsActual: q.actual?.raw ?? null,
+      epsEstimate: q.estimate?.raw ?? null,
+      surprisePercent: q.surprisePct != null ? Number(q.surprisePct) : null,
+      reportedDate: q.reportedDate?.fmt || null,
+    }));
+}
+
 function buildQuote(ticker, chart, summary) {
   const meta = chart.meta || {};
   const price = summary?.price || {};
@@ -100,6 +137,8 @@ function buildQuote(ticker, chart, summary) {
   const stats = summary?.defaultKeyStatistics || {};
   const financials = summary?.financialData || {};
   const profile = summary?.assetProfile || {};
+  const calendarEarnings = summary?.calendarEvents?.earnings || {};
+  const earnings = summary?.earnings || {};
 
   return {
     symbol: ticker,
@@ -132,6 +171,12 @@ function buildQuote(ticker, chart, summary) {
     industry: profile.industry || null,
     businessSummary: profile.longBusinessSummary || null,
     extendedStatsAvailable: Boolean(summary),
+    nextEarningsDate: calendarEarnings.earningsDate?.[0]?.fmt || null,
+    isEarningsDateEstimate: calendarEarnings.isEarningsDateEstimate ?? null,
+    epsEstimateAverage: calendarEarnings.earningsAverage?.raw ?? null,
+    revenueEstimateAverage: calendarEarnings.revenueAverage?.raw ?? null,
+    exDividendDate: summary?.calendarEvents?.exDividendDate?.fmt || null,
+    earningsHistory: extractEarningsHistory(earnings),
   };
 }
 
@@ -171,4 +216,4 @@ async function fetchLiteQuote(ticker) {
   return buildLiteQuote(ticker, chart, summary);
 }
 
-module.exports = { fetchChart, fetchQuoteSummary, buildQuote, fetchLiteQuote };
+module.exports = { fetchChart, fetchQuoteSummary, buildQuote, fetchLiteQuote, fetchAuthenticated };
